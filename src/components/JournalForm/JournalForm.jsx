@@ -1,107 +1,192 @@
-import { useEffect, useReducer } from "react";
+import {useReducer, useRef} from 'react';
 import styles from "./JournalForm.module.css";
 import classNames from "classnames";
 import Button from "../Button/Button";
 import { formReducer, INITIAL_STATE } from "./JournalForm.state.js";
 
-const ACTION_TYPES = {
-  SUBMIT: "SUBMIT",
-  RESET_VALIDITY: "RESET_VALIDITY",
+const FIELD_NAMES = {
+    TITLE: "title",
+    DATE: "date",
+    TEXT: "text",
 };
-
-const FIELD_NAMES = ["title", "date", "text"];
 
 const CSS_CLASSES = {
-  input: styles.input,
-  inputTitle: styles["input-title"],
-  invalid: styles.invalid,
+    input: styles.input,
+    inputTitle: styles["input-title"],
+    invalid: styles.invalid,
 };
 
-function JournalForm({ onSubmit }) {
-  const [formState, dispatchForm] = useReducer(formReducer, INITIAL_STATE);
-  const { isValid } = formState;
+const FORM_FIELDS = [
+    {
+        name: FIELD_NAMES.TITLE,
+        placeholder: "Заголовок",
+        type: "text",
+        label: null,
+        isTextArea: false,
+    },
+    {
+        name: FIELD_NAMES.DATE,
+        placeholder: null,
+        type: "date",
+        label: "Дата",
+        icon: "/date.svg",
+        isTextArea: false,
+    },
+    {
+        name: "tag",
+        placeholder: "Метки",
+        type: "text",
+        label: "Метки",
+        icon: "/folder.svg",
+        isTextArea: false,
+    },
+    {
+        name: FIELD_NAMES.TEXT,
+        placeholder: "Текст",
+        type: null,
+        label: null,
+        isTextArea: true,
+    },
+];
 
-  useEffect(() => {
-    if (Object.values(isValid).some((fieldValid) => !fieldValid)) {
-      const timerId = setTimeout(() => {
-        dispatchForm({ type: ACTION_TYPES.RESET_VALIDITY });
-      }, 1000);
-      return () => clearTimeout(timerId);
-    }
-  }, [isValid]);
+function getValidationClass(isValid, field) {
 
-  const dispatchValidation = (field, value) => {
-    dispatchForm({ type: ACTION_TYPES.SUBMIT, payload: { [field]: value } });
-  };
-
-  const createValidationState = (formProps) =>
-    Object.fromEntries(
-      FIELD_NAMES.map((field) => [
-        field,
-        dispatchValidation(field, formProps[field]),
-      ]),
-    );
-
-  const getValidationClass = (field) =>
-    classNames({
-      [CSS_CLASSES.inputTitle]: field === "title",
-      [CSS_CLASSES.invalid]: !isValid[field],
-      [CSS_CLASSES.input]: true,
+    return classNames({
+        [CSS_CLASSES.input]: true,
+        [CSS_CLASSES.inputTitle]: field === FIELD_NAMES.TITLE,
+        [CSS_CLASSES.invalid]: isValid[field] === false,
     });
+}
 
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    const formData = new FormData(e.target);
-    const formProps = Object.fromEntries(formData);
+function validateFields(formData) {
+    const validations = {
+        [FIELD_NAMES.TITLE]: !!formData[FIELD_NAMES.TITLE]?.trim(),
+        [FIELD_NAMES.DATE]: !!formData[FIELD_NAMES.DATE],
+        [FIELD_NAMES.TEXT]: !!formData[FIELD_NAMES.TEXT]?.trim(),
+    };
 
-    const updatedValidationState = createValidationState(formProps);
+    return validations;
+}
 
-    if (Object.values(updatedValidationState).some((valid) => !valid)) {
-      return;
+function isFormValid(validationResults) {
+    return Object.values(validationResults).every(Boolean);
+}
+
+function renderField({
+                         name,
+                         placeholder,
+                         type,
+                         label,
+                         icon,
+                         isTextArea,
+                         values,
+                         isValid,
+                         handleChange,
+                        inputRef,
+                     }) {
+    return (
+        <div className={styles["form-row"]} key={name}>
+            {label && (
+                <label htmlFor={name} className={styles["form-label"]}>
+                    {icon && <img src={icon} alt={`Иконка для ${label}`} />}
+                    <span>{label}</span>
+                </label>
+            )}
+            {isTextArea ? (
+                <>
+                    <textarea
+                        name={name}
+                        value={values[name] || ""}
+                        className={getValidationClass(isValid, name)}
+                        placeholder={placeholder}
+                        onChange={handleChange}
+                        ref={inputRef}
+                        rows="10"
+                        cols="30"
+                    />
+                </>
+            ) : (
+                <>
+                    <input
+                        type={type}
+                        name={name}
+                        id={name}
+                        value={values[name] || ""}
+                        className={getValidationClass(isValid, name)}
+                        placeholder={placeholder}
+                        onChange={handleChange}
+                        ref={inputRef}
+                    />
+                </>
+            )}
+        </div>
+    );
+}
+
+function JournalForm({ onSubmit }) {
+    const [formState, dispatchForm] = useReducer(formReducer, INITIAL_STATE);
+    const { values, isValid } = formState;
+
+    const titleRef = useRef()
+    const dateRef = useRef()
+    const textRef = useRef()
+
+    const focusError = (isValid) => {
+        switch (true) {
+            case !isValid.title:
+                titleRef.current.focus();
+                break;
+            case !isValid.date:
+                dateRef.current.focus();
+                break;
+            case !isValid.text:
+                textRef.current.focus();
+                break;
+        }
     }
 
-    if (formState.isFormReadyToSubmit) {
-      onSubmit(formProps);
-    }
-  };
+    const handleChange = ({ target: { name, value } }) => {
+        dispatchForm({ type: "SET_VALUE", payload: { [name]: value } });
+    };
 
-  return (
-    <form className={styles["journal-form"]} onSubmit={handleSubmit}>
-      <div>
-        <input
-          type="text"
-          name="title"
-          className={getValidationClass("title")}
-        />
-      </div>
-      <div className={styles["form-row"]}>
-        <label htmlFor="date" className={styles["form-label"]}>
-          <img src="/date.svg" alt="Иконка календаря" />
-          <span>Дата</span>
-        </label>
-        <input
-          type="date"
-          name="date"
-          id="date"
-          className={getValidationClass("date")}
-        />
-      </div>
-      <div className={styles["form-row"]}>
-        <label htmlFor="tag" className={styles["form-label"]}>
-          <img src="/folder.svg" alt="Иконка папки" />
-          <span>Метки</span>
-        </label>
-        <input type="text" name="tag" id="tag" className={CSS_CLASSES.input} />
-      </div>
-      <textarea
-        name="text"
-        cols="30"
-        rows="10"
-        className={getValidationClass("text")}
-      ></textarea>
-      <Button text="Сохранить" />
-    </form>
-  );
+    const handleSubmit = (e) => {
+        e.preventDefault();
+
+        const validationResults = validateFields(formState.values);
+
+        dispatchForm({ type: "SET_VALIDITY", payload: validationResults });
+        focusError(validationResults);
+
+        if (!isFormValid(validationResults)) {
+            return;
+        }
+
+        onSubmit(formState.values);
+        dispatchForm({ type: "CLEAR" });
+    };
+
+    return (
+        <form className={styles["journal-form"]} onSubmit={handleSubmit}>
+            {FORM_FIELDS.map((field) =>
+                renderField({
+                    ...field,
+                    values,
+                    isValid,
+                    handleChange,
+                    inputRef:
+                        field.name === FIELD_NAMES.TITLE
+                            ? titleRef
+                            : field.name === FIELD_NAMES.DATE
+                                ? dateRef
+                                : field.name === FIELD_NAMES.TEXT
+                                    ? textRef
+                                    : undefined,
+
+                })
+            )}
+            <Button text="Сохранить" />
+        </form>
+    );
 }
 
 export default JournalForm;

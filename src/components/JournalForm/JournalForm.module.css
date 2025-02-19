@@ -21,6 +21,10 @@
     filter: invert(1);
 }
 
+.input[type="date"]::placeholder {
+    color: black;
+}
+
 .input-title {
     border: none;
     border-bottom: 1px solid #626262;
