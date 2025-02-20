@@ -49,9 +49,7 @@ export function formReducer(state, action) {
     }
 
     case "SET_VALIDITY":
-      console.log("Validation payload:", action.payload);
-
-      return { ...state, isValid: {...state.isValid, ...action.payload} };
+      return { ...state, isValid: { ...state.isValid, ...action.payload } };
 
     case "CLEAR": {
       const resetValues = INITIAL_STATE.values;

@@ -59,4 +59,5 @@
 .invalid {
     border: 1px solid red;
     background: #ffdddd;
-}
+    color: #181818;
+ }
